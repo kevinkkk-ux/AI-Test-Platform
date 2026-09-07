@@ -1,4 +1,4 @@
-# 环境变量（包含API key，绝对不能传上去！）
+# 环境变量
 .env
 
 # Python缓存
@@ -6,15 +6,14 @@ __pycache__/
 *.pyc
 *.pyo
 
-# PyCharm配置
+# IDE
 .idea/
+.vscode/
 
-# 虚拟环境
-venv/
-env/
+# 系统文件
+.DS_Store
+Thumbs.db
 
-# 生成的测试用例Excel（可选，不想传就加上）
-# files/*.xlsx
-
-# 生成的Selenium脚本（可选）
-# files/scripts/
+# 临时文件
+*.log
+*.tmp
