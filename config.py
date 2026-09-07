@@ -37,3 +37,16 @@ os.makedirs("files", exist_ok=True)
 # ========== Selenium自动化脚本配置 ==========
 SCRIPT_DIR = "files/scripts"  # 生成的脚本保存目录
 os.makedirs(SCRIPT_DIR, exist_ok=True)
+# ========== Selenium自动化执行配置 ==========
+SELENIUM_TARGET = {
+    # 本地测试页面（用你项目里的login.html）
+    "login_url": r"file:///C:/Users/hp/PycharmProjects/PythonProject6/login.html",
+    "register_url": "http://127.0.0.1:8080/register",
+    # 元素定位器
+    "login_username": "username",
+    "login_password": "password",
+    "login_submit": "loginBtn",
+}
+
+# ========== 默认测试用例文件路径 ==========
+CASE_PATH = "files/testcases.xlsx"

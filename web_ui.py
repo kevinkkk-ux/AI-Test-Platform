@@ -12,6 +12,7 @@ from data_generator import (
 from config import OUTPUT_PATHS
 from api_doc_parser import parse_doc_for_selenium
 from selenium_generator import generate_selenium_script
+from auto_test import execute_login_cases, execute_register_cases
 
 
 # ========== 测试用例生成相关函数 ==========
@@ -78,6 +79,28 @@ def on_generate_script(config_json, case_file):
         return f"生成失败: {e}", ""
 
 
+# ========== 自动化测试执行相关函数 ==========
+def on_execute_click(url, case_file, headless, exec_type):
+    """执行自动化测试"""
+    case_path = case_file.name if case_file else None
+    try:
+        if exec_type == "登录":
+            summary, logs = execute_login_cases(
+                url=url,
+                case_file=case_path,
+                headless=headless
+            )
+        else:
+            summary, logs = execute_register_cases(
+                url=url,
+                case_file=case_path,
+                headless=headless
+            )
+        return summary, logs
+    except Exception as e:
+        return f"执行失败: {e}", str(e)
+
+
 # ========== Gradio界面 ==========
 with gr.Blocks(title="AI辅助测试用例生成系统") as demo:
     gr.Markdown("# 📝 AI辅助测试用例生成系统")
@@ -118,7 +141,7 @@ with gr.Blocks(title="AI辅助测试用例生成系统") as demo:
                 modify_table = gr.Dataframe(label="修改个人信息用例预览", wrap=True)
                 modify_file = gr.File(label="下载修改个人信息用例Excel")
 
-    # ========== 选项卡2：自动化脚本生成（新增） ==========
+    # ========== 选项卡2：自动化脚本生成 ==========
     with gr.Tab("自动化脚本生成"):
         gr.Markdown("## 🤖 AI协同Selenium自动化测试脚本生成")
         gr.Markdown("上传接口文档→智能解析元素配置→上传测试用例Excel→生成Selenium自动化脚本")
@@ -171,7 +194,38 @@ with gr.Blocks(title="AI辅助测试用例生成系统") as demo:
             interactive=True
         )
 
-    # ========== 选项卡3：关于系统 ==========
+    # ========== 选项卡3：自动化测试执行（独立选项卡） ==========
+    with gr.Tab("自动化测试执行"):
+        gr.Markdown("## 🚀 自动化测试执行")
+        gr.Markdown("配置目标页面和测试用例，一键执行自动化测试，输出执行结果和通过率")
+
+        with gr.Row():
+            with gr.Column(scale=1):
+                gr.Markdown("### 执行配置")
+                exec_url = gr.Textbox(
+                    label="目标页面URL",
+                    value=r"file:///C:/Users/hp/PycharmProjects/PythonProject6/login.html",
+                    lines=1
+                )
+                exec_case_file = gr.File(
+                    label="测试用例Excel（不选则用默认）",
+                    file_count="single",
+                    file_types=[".xlsx"]
+                )
+                exec_headless = gr.Checkbox(label="无头模式（不显示浏览器窗口）", value=True)
+                exec_type = gr.Radio(
+                    choices=["登录", "注册"],
+                    value="登录",
+                    label="测试类型"
+                )
+                exec_btn = gr.Button("▶️ 开始执行自动化测试", variant="primary", size="lg")
+
+            with gr.Column(scale=1):
+                gr.Markdown("### 执行结果")
+                exec_summary = gr.Textbox(label="执行摘要", lines=2)
+                exec_logs = gr.Textbox(label="执行日志", lines=15, max_lines=30)
+
+    # ========== 选项卡4：关于系统 ==========
     with gr.Tab("关于系统"):
         gr.Markdown("""
         ## 系统说明
@@ -191,6 +245,12 @@ with gr.Blocks(title="AI辅助测试用例生成系统") as demo:
         - 结合测试用例Excel，生成Selenium自动化测试脚本
         - 脚本保存至 `files/scripts/` 目录
 
+        ### 3. 自动化测试执行
+        - 配置目标页面URL和测试用例Excel
+        - 一键执行自动化测试
+        - 输出执行摘要、详细日志和通过率
+        - 结果自动写回Excel
+
         ## 数据库表结构
         - `test_case_main`：用例主表，记录每次生成的基本信息
         - `test_case_detail`：用例明细表，记录每一条具体测试用例
@@ -198,7 +258,8 @@ with gr.Blocks(title="AI辅助测试用例生成系统") as demo:
         ## 使用说明
         1. 在"测试用例生成"选项卡中，设置用例数量，点击生成
         2. 在"自动化脚本生成"选项卡中，上传接口文档→解析→上传测试用例→生成脚本
-        3. 生成结果可在页面预览，或下载文件
+        3. 在"自动化测试执行"选项卡中，配置执行参数，点击开始执行
+        4. 生成结果可在页面预览，或下载文件
         """)
 
     # ========== 绑定事件 ==========
@@ -222,6 +283,13 @@ with gr.Blocks(title="AI辅助测试用例生成系统") as demo:
         on_generate_script,
         inputs=[parsed_config, case_file_upload],
         outputs=[script_code, script_save_msg]
+    )
+
+    # 自动化测试执行
+    exec_btn.click(
+        on_execute_click,
+        inputs=[exec_url, exec_case_file, exec_headless, exec_type],
+        outputs=[exec_summary, exec_logs]
     )
 
 

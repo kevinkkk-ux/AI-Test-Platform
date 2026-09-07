@@ -16,17 +16,40 @@
         <button id="btnSubmit">登录</button>
     </div>
 
-<script>
-    const btn = document.getElementById('btnSubmit');
-    btn.onclick = function(){
-        let name = document.getElementById('txtName').value;
-        let pwd = document.getElementById('txtPwd').value;
-        if(name === "dada" && pwd === "123456"){
+    <script>
+        const btn = document.getElementById('btnSubmit');
+        btn.onclick = function(){
+            let name = document.getElementById('txtName').value;
+            let pwd = document.getElementById('txtPwd').value;
+
+            // 账号规则：1-20位字母数字
+            const nameReg = /^[a-zA-Z0-9]{1,20}$/;
+            // 密码规则：6-16位字母数字
+            const pwdReg = /^[a-zA-Z0-9]{6,16}$/;
+
+            // 验证账号
+            if(!name){
+                alert("用户名不能为空");
+                return;
+            }
+            if(!nameReg.test(name)){
+                alert("用户名格式错误，需为1-20位字母数字");
+                return;
+            }
+
+            // 验证密码
+            if(!pwd){
+                alert("密码不能为空");
+                return;
+            }
+            if(!pwdReg.test(pwd)){
+                alert("密码格式错误，需为6-16位字母数字");
+                return;
+            }
+
+            // 都符合规则 → 登录成功
             alert("登录成功");
-        }else{
-            alert("用户名或者密码错误");
         }
-    }
-</script>
+    </script>
 </body>
 </html>
