@@ -1,8 +1,9 @@
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-# 加载.env文件
-load_dotenv()
+# 自动向上查找.env文件（从当前目录开始，一直往上找，直到找到）
+load_dotenv(find_dotenv())
+
 
 # ========== 数据库配置 ==========
 DB_CONFIG = {
