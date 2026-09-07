@@ -13,6 +13,7 @@ from config import OUTPUT_PATHS
 from api_doc_parser import parse_doc_for_selenium
 from selenium_generator import generate_selenium_script
 from auto_test import execute_login_cases, execute_register_cases
+from data_analyzer import analyze
 
 
 # ========== 测试用例生成相关函数 ==========
@@ -99,6 +100,69 @@ def on_execute_click(url, case_file, headless, exec_type):
         return summary, logs
     except Exception as e:
         return f"执行失败: {e}", str(e)
+
+
+# ========== 数据分析智能体相关函数 ==========
+def on_analyze_click(question, chart_type):
+    """执行数据分析"""
+    if not question.strip():
+        return "请输入查询问题", None, "请输入查询问题", None
+
+    try:
+        sql, df, report = analyze(question)
+
+        # 生成图表
+        chart = None
+        if not df.empty and "错误" not in df.columns:
+            try:
+                import matplotlib
+                matplotlib.use('Agg')
+                import matplotlib.pyplot as plt
+                plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS']
+                plt.rcParams['axes.unicode_minus'] = False
+
+                fig, ax = plt.subplots(figsize=(10, 6))
+                numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+
+                if chart_type == "饼图" or (chart_type == "自动选择" and len(df) <= 8 and len(numeric_cols) >= 1):
+                    if len(df.columns) >= 2 and len(numeric_cols) >= 1:
+                        labels = df.iloc[:, 0].astype(str).tolist()
+                        values = df[numeric_cols[0]].tolist()
+                        ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90)
+                        ax.set_title(question)
+                        chart = fig
+                elif chart_type == "柱状图" or (chart_type == "自动选择" and len(numeric_cols) >= 1):
+                    if len(df.columns) >= 2 and len(numeric_cols) >= 1:
+                        x = df.iloc[:, 0].astype(str).tolist()
+                        y = df[numeric_cols[0]].tolist()
+                        bars = ax.bar(x, y, color='steelblue')
+                        ax.set_xlabel(df.columns[0])
+                        ax.set_ylabel(numeric_cols[0])
+                        ax.set_title(question)
+                        plt.xticks(rotation=45, ha='right')
+                        for bar in bars:
+                            height = bar.get_height()
+                            ax.text(bar.get_x() + bar.get_width()/2., height,
+                                    f'{int(height)}', ha='center', va='bottom')
+                        plt.tight_layout()
+                        chart = fig
+                elif chart_type == "折线图":
+                    if len(df.columns) >= 2 and len(numeric_cols) >= 1:
+                        x = df.iloc[:, 0].astype(str).tolist()
+                        y = df[numeric_cols[0]].tolist()
+                        ax.plot(x, y, marker='o', linewidth=2, color='steelblue')
+                        ax.set_xlabel(df.columns[0])
+                        ax.set_ylabel(numeric_cols[0])
+                        ax.set_title(question)
+                        plt.xticks(rotation=45, ha='right')
+                        plt.tight_layout()
+                        chart = fig
+            except Exception as e:
+                print(f"图表生成失败: {e}")
+
+        return sql, df, report, chart
+    except Exception as e:
+        return f"分析失败: {e}", None, f"分析失败: {e}", None
 
 
 # ========== Gradio界面 ==========
@@ -194,7 +258,7 @@ with gr.Blocks(title="AI辅助测试用例生成系统") as demo:
             interactive=True
         )
 
-    # ========== 选项卡3：自动化测试执行（独立选项卡） ==========
+    # ========== 选项卡3：自动化测试执行 ==========
     with gr.Tab("自动化测试执行"):
         gr.Markdown("## 🚀 自动化测试执行")
         gr.Markdown("配置目标页面和测试用例，一键执行自动化测试，输出执行结果和通过率")
@@ -225,7 +289,48 @@ with gr.Blocks(title="AI辅助测试用例生成系统") as demo:
                 exec_summary = gr.Textbox(label="执行摘要", lines=2)
                 exec_logs = gr.Textbox(label="执行日志", lines=15, max_lines=30)
 
-    # ========== 选项卡4：关于系统 ==========
+    # ========== 选项卡4：数据分析智能体 ==========
+    with gr.Tab("数据分析智能体"):
+        gr.Markdown("## 📊 AI数据分析智能体")
+        gr.Markdown("输入自然语言查询，AI自动生成SQL、执行查询、生成分析报告和可视化图表")
+
+        with gr.Row():
+            with gr.Column(scale=1):
+                gr.Markdown("### 查询输入")
+                analyze_question = gr.Textbox(
+                    label="输入自然语言查询",
+                    placeholder="例如：统计各功能模块的测试用例数量",
+                    lines=3
+                )
+                chart_type = gr.Dropdown(
+                    choices=["自动选择", "饼图", "柱状图", "折线图", "表格"],
+                    value="自动选择",
+                    label="图表类型"
+                )
+                analyze_btn = gr.Button("🔍 执行分析", variant="primary", size="lg")
+
+                gr.Markdown("### 示例查询")
+                gr.Markdown("""
+                1. 统计各功能模块的测试用例数量
+                2. 查看最近生成的10条测试用例记录
+                3. 统计各种用例类型的分布情况
+                4. 计算每天生成的用例数量趋势
+                5. 查看所有操作日志记录
+                6. 统计登录模块的有效等价类用例数量
+                """)
+
+            with gr.Column(scale=1):
+                gr.Markdown("### 输出结果")
+                analyze_sql = gr.Code(label="生成的SQL语句", language="sql", lines=5)
+                with gr.Tabs():
+                    with gr.TabItem("分析报告"):
+                        analyze_report = gr.Markdown()
+                    with gr.TabItem("查询结果"):
+                        analyze_df = gr.Dataframe(label="查询结果", wrap=True)
+                    with gr.TabItem("可视化图表"):
+                        analyze_chart = gr.Plot(label="可视化图表")
+
+    # ========== 选项卡5：关于系统 ==========
     with gr.Tab("关于系统"):
         gr.Markdown("""
         ## 系统说明
@@ -251,15 +356,23 @@ with gr.Blocks(title="AI辅助测试用例生成系统") as demo:
         - 输出执行摘要、详细日志和通过率
         - 结果自动写回Excel
 
+        ### 4. 数据分析智能体
+        - 自然语言转SQL查询
+        - 自动执行数据库查询
+        - 生成数据分析报告
+        - 可视化图表展示
+
         ## 数据库表结构
         - `test_case_main`：用例主表，记录每次生成的基本信息
         - `test_case_detail`：用例明细表，记录每一条具体测试用例
+        - `operation_log`：操作日志表
 
         ## 使用说明
         1. 在"测试用例生成"选项卡中，设置用例数量，点击生成
         2. 在"自动化脚本生成"选项卡中，上传接口文档→解析→上传测试用例→生成脚本
         3. 在"自动化测试执行"选项卡中，配置执行参数，点击开始执行
-        4. 生成结果可在页面预览，或下载文件
+        4. 在"数据分析智能体"选项卡中，输入自然语言查询，点击执行分析
+        5. 生成结果可在页面预览，或下载文件
         """)
 
     # ========== 绑定事件 ==========
@@ -290,6 +403,13 @@ with gr.Blocks(title="AI辅助测试用例生成系统") as demo:
         on_execute_click,
         inputs=[exec_url, exec_case_file, exec_headless, exec_type],
         outputs=[exec_summary, exec_logs]
+    )
+
+    # 数据分析智能体
+    analyze_btn.click(
+        on_analyze_click,
+        inputs=[analyze_question, chart_type],
+        outputs=[analyze_sql, analyze_df, analyze_report, analyze_chart]
     )
 
 

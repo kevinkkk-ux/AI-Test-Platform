@@ -25,6 +25,10 @@ class DatabaseManager:
             self.conn = None
             self.cursor = None
 
+    def get_connection(self):
+        """获取数据库连接（给pandas查询用，返回新连接）"""
+        return mysql.connector.connect(**DB_CONFIG)
+
     def insert_test_case_main(self, case_type, group_num, case_title, case_content, generate_type=2):
         """插入用例主表，返回主表ID"""
         if not self.cursor:
@@ -111,6 +115,7 @@ class DatabaseManager:
 
 # 全局单例
 _db_manager = None
+
 
 def get_db_manager():
     """获取数据库管理器单例"""
